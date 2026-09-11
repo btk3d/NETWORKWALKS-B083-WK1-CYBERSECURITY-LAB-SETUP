@@ -186,39 +186,42 @@ Snapshots taken after something breaks are worthless. Taking them at the known-g
 
 ## 🐞 Problems Encountered & Solutions
 
+Two real blockers came up during this week's work. Both were on the Android VM, and both are the kind that stop the build completely rather than slow it down.
+
 ### 1. `This kernel requires an x86-64 CPU, but only detected an i686 CPU`
 
 The Android VM refused to boot the installer at all.
 
 ![Boot failure](10-boot-error-i686.png)
 
+```text
+This kernel requires an x86-64 CPU, but only detected an i686 CPU.
+Unable to boot - please use a kernel appropriate for your CPU.
+```
+
 **Cause:** the 64-bit ISO was attached to a VM whose OS version was set to a 32-bit type. VirtualBox builds the guest's virtual CPU from that setting, so it presented a 32-bit processor and the 64-bit kernel correctly refused to run.
 
-The message reads like a hardware fault on the host. It is not. The mismatch is entirely inside the VM definition.
+The message reads like a hardware fault on the host. It is not. The host CPU is fine — the mismatch is entirely inside the VM definition, and that is what makes this one slow to diagnose.
 
-**Fix:** power off → **Settings → General → Basic → Version** set to a 64-bit Linux profile → confirm **PAE/NX** is enabled → confirm VT-x/AMD-V is on in the host BIOS. ISO architecture and VM architecture must match.
+**Fix:**
 
-### 2. Android has no Ethernet settings page
+1. Power the VM off.
+2. **Settings → General → Basic → Version**: set a 64-bit Linux profile.
+3. **Settings → System → Processor**: confirm **Enable PAE/NX** is ticked.
+4. Confirm Intel VT-x / AMD-V is enabled in the host BIOS/UEFI.
+5. Start the VM again — the installer boots.
 
-Every generic guide sends you to **Settings → Network & Internet → Ethernet**, which does not exist on Android-x86.
+The rule underneath: ISO architecture and VM architecture are one decision, not two.
 
-**Cause:** Android's networking stack is built for mobile hardware, so Android-x86 maps the wired VirtualBox adapter onto the Wi-Fi path Android already understands — the **VirtWifi** network on `wlan0`.
+### 2. Android-x86 has no Ethernet settings page
 
-**Fix:** configure the static address under **Wi-Fi → VirtWifi → IP settings → Static**.
+Every generic guide sends you to **Settings → Network & Internet → Ethernet** to set the static IP. That page does not exist on Android-x86, so there is nothing to click and no obvious next step.
 
-### 3. `Could not delete the medium storage unit` (VBOX_E_FILE_ERROR)
+**Cause:** Android's networking stack is built for mobile hardware. Android-x86 therefore maps the wired VirtualBox adapter onto the path Android already understands — a virtual Wi-Fi network called **VirtWifi**, on interface `wlan0`.
 
-VirtualBox refused to remove an old Kali `.vdi`, and the disk stayed registered in the Virtual Media Manager.
+**Fix:** configure the address under **Settings → Network & Internet → Wi-Fi → VirtWifi → IP settings → Static**. Note that Android asks for a **network prefix length (24)** rather than a subnet mask.
 
-**Cause:** the file was still locked — the VM was running or saved, or a snapshot still referenced the disk.
-
-**Fix:** power the VM fully off (not Save State), delete or merge snapshots referencing the disk, then **File → Tools → Virtual Media Manager → Release** before removing.
-
-### 4. DHCP disabled meant no automatic addressing
-
-With **Enable DHCP** unchecked on the NAT Network, any VM left on "obtain automatically" lands on a `169.254.x.x` APIPA address and reaches nothing.
-
-**Fix:** this was intentional. Every machine is addressed statically so the documentation stays accurate. The alternative is to enable DHCP and keep the three lab addresses outside the pool.
+![Android VirtWifi static IP](05-android-virtwifi-static-ip.png)
 
 ---
 
@@ -246,7 +249,7 @@ Testing both directions, and knowing that a one-way failure means a host firewal
 
 ### 6. The problems are the deliverable
 
-A lab that works is worth little if nobody can rebuild it. The two boot failures, the missing Ethernet page and the locked `.vdi` are the parts of this documentation another student will actually use.
+A lab that works is worth little if nobody can rebuild it. The boot failure and the missing Ethernet page are the two things another student attempting this will actually hit, and recording them with the real error text is what makes this document more useful than the guide it started from.
 
 ---
 
